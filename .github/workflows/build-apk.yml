@@ -1,0 +1,38 @@
+name: Build APK
+on:
+  push: { tags: ['v*'] }
+  workflow_dispatch: {}
+permissions: { contents: write }
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - run: sudo apt-get update && sudo apt-get install -y librsvg2-bin
+      - name: Build
+        run: |
+          set -e
+          VER="${GITHUB_REF_NAME#v}"
+          [ "$GITHUB_REF_TYPE" = tag ] || VER="0.0.${{ github.run_number }}"
+          mkdir -p www assets; cp index.html icon.svg www/
+          sed -i "s#YOUR_USER/ia-expenses#${{ github.repository }}#;s#const VER='[^']*'#const VER='$VER'#" www/index.html
+          rsvg-convert -w 1024 -h 1024 icon.svg -o assets/icon-only.png
+          npm install
+          npx cap add android
+          P=android/app/src/main/java/com/ia/expenses; mkdir -p $P; cp native/*.java $P/
+          M=android/app/src/main/AndroidManifest.xml
+          sed -i 's#<application#<uses-permission android:name="android.permission.READ_SMS"/>\n    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>\n    <application android:usesCleartextTraffic="true"#' $M
+          npx capacitor-assets generate --android --iconBackgroundColor '#0f766e' --iconBackgroundColorDark '#0f766e'
+          mkdir -p ~/.android; cp keystore/debug.keystore ~/.android/debug.keystore
+          sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/;s/versionName \"1.0\"/versionName \"$VER\"/" android/app/build.gradle
+          cd android && chmod +x gradlew && ./gradlew assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk ../IA-Expenses.apk
+      - uses: actions/upload-artifact@v4
+        with: { name: IA-Expenses-apk, path: IA-Expenses.apk }
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with: { files: IA-Expenses.apk }
