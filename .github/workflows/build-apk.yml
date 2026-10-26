@@ -25,7 +25,9 @@ jobs:
           npx cap add android
           P=android/app/src/main/java/com/ia/expenses; mkdir -p $P; cp native/*.java $P/
           M=android/app/src/main/AndroidManifest.xml
-          sed -i 's#<application#<uses-permission android:name="android.permission.READ_SMS"/>\n    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>\n    <application android:usesCleartextTraffic="true"#' $M
+          sed -i 's#<application#<uses-permission android:name="android.permission.READ_SMS"/>\n    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>\n    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>\n    <application android:usesCleartextTraffic="true"#' $M
+          mkdir -p android/app/src/main/res/xml
+          printf '<?xml version="1.0" encoding="utf-8"?>\n<paths xmlns:android="http://schemas.android.com/apk/res/android">\n<cache-path name="cache" path="."/>\n<external-path name="ext" path="."/>\n<files-path name="files" path="."/>\n</paths>\n' > android/app/src/main/res/xml/file_paths.xml
           npx capacitor-assets generate --android --iconBackgroundColor '#0f766e' --iconBackgroundColorDark '#0f766e'
           mkdir -p ~/.android; cp keystore/debug.keystore ~/.android/debug.keystore
           sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/;s/versionName \"1.0\"/versionName \"$VER\"/" android/app/build.gradle

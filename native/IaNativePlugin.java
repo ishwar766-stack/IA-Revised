@@ -2,6 +2,10 @@ package com.ia.expenses;
 import android.Manifest;
 import android.database.Cursor;
 import android.net.Uri;
+import android.content.Intent;
+import android.os.Build;
+import android.provider.Settings;
+import androidx.core.content.FileProvider;
 import com.getcapacitor.*;
 import com.getcapacitor.annotation.*;
 import java.io.*;
@@ -92,6 +96,33 @@ public class IaNativePlugin extends Plugin {
         JSArray peers = new JSArray();
         for (String ip : ips) { if (own.contains(ip)) continue; try { peers.put(post(ip, mine)); } catch (Exception e) { } }
         JSObject r = new JSObject(); r.put("peers", peers); c.resolve(r);
+      } catch (Exception e) { c.reject(String.valueOf(e.getMessage())); }
+    }).start();
+  }
+  @PluginMethod public void installApk(PluginCall c) {
+    final String url = c.getString("url");
+    if (Build.VERSION.SDK_INT >= 26 && !getContext().getPackageManager().canRequestPackageInstalls()) {
+      Intent i = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getContext().getPackageName()));
+      i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); getContext().startActivity(i); c.reject("perm"); return;
+    }
+    new Thread(() -> {
+      try {
+        File f = new File(getContext().getCacheDir(), "update.apk");
+        HttpURLConnection u = (HttpURLConnection) new URL(url).openConnection();
+        u.setInstanceFollowRedirects(true); u.setConnectTimeout(10000); u.setReadTimeout(20000);
+        int len = u.getContentLength();
+        try (InputStream in = u.getInputStream(); FileOutputStream o = new FileOutputStream(f)) {
+          byte[] b = new byte[16384]; int n, last = -1; long t = 0;
+          while ((n = in.read(b)) > 0) {
+            o.write(b, 0, n); t += n;
+            if (len > 0) { int p = (int) (t * 100 / len); if (p != last) { last = p; JSObject e = new JSObject(); e.put("p", p); notifyListeners("dl", e); } }
+          }
+        }
+        Uri uri = FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", f);
+        Intent i = new Intent(Intent.ACTION_VIEW);
+        i.setDataAndType(uri, "application/vnd.android.package-archive");
+        i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+        getContext().startActivity(i); c.resolve();
       } catch (Exception e) { c.reject(String.valueOf(e.getMessage())); }
     }).start();
   }

@@ -20,7 +20,7 @@ canvas{width:100%;height:auto}.dot{display:inline-block;width:10px;height:10px;b
 <header><img src="icon.svg" alt=""><div><b>IA (Expenses)</b><small>Family expense manager · offline</small></div></header>
 <main id="app"></main><nav id="nav"></nav>
 <script>
-const VER='1.2.0',K='ia_exp_v1',COL=['#0f766e','#f59e0b','#3b82f6','#ef4444','#8b5cf6','#10b981','#ec4899','#64748b'];
+const VER='1.3.0',K='ia_exp_v1',COL=['#0f766e','#f59e0b','#3b82f6','#ef4444','#8b5cf6','#10b981','#ec4899','#64748b'];
 const CATS=['Groceries & Essentials','Medical & Healthcare','Travel & Commute','Food & Dining','Bills & Utilities','Education','Rent & Home','Other'];
 const RULES=[['IGNORE (Investment)',/\bsip\b|mutual\W*funds?|\bmf\b|\bamc\b|bandhan\s*(?:mutual|mf|amc|fund)|groww|zerodha|\bnps\b|\bppf\b|\bjar\b|gold|silver|folio|demat|smallcase|kuvera|indmoney/i],
 ['IGNORE (Transfer)',/self[\s-]*transfer|\bself\b|\bto\s*self|own\s*(?:a\/?c|account)|sent to family|family\s*(?:group|transfer)|transfer(?:red)?\s*to\s*(?:self|family)|\b(?:neft|imps|rtgs)\b|fund\s*transfer|(?:to|towards)\s+(?:your\s+|own\s+)?(?:hdfc|icici|sbi|axis|kotak|pnb|canara|bandhan|idfc|yes|indusind|federal|idbi|bob|union)\s*(?:bank)?\s*(?:a\/?c|account)|a\/?c\s*(?:no\.?\s*)?[x*]+\d{3,4}\s*(?:to|->)\s*(?:a\/?c|[a-z]+\s*bank)/i],
@@ -125,7 +125,7 @@ function upd(){if(NP)return apkUpd();if(!swReg){flash='Updates need the installe
 function render(){if(!db)return reg();
  const T=[['dash','🏠','Home'],['month','📅','Month'],['add','➕','Add'],['year','📊','Year'],['sms','💬','SMS'],['fam','👪','Family'],['about','ℹ️','About']];
  $('#nav').innerHTML=T.map(([k,i,l])=>`<a class="${tab==k?'on':''}" onclick="edit=null;tab='${k}';render()">${i}<br>${l}</a>`).join('');
- $('#app').innerHTML=(upv?`<div class="card" style="border-color:var(--p)"><b>Update ${upv.v} available</b><div class="m">Tap to download, then open the downloaded APK to install.</div><button onclick="doUpd()">Update now</button></div>`:'')+(flash?`<div class="card">${flash}</div>`:'')+({dash,month,add:form,year,sms,fam,about,cat:catv}[tab])();flash='';
+ $('#app').innerHTML=(upv?`<div class="card" style="border-color:var(--p)"><b>Update ${upv.v} available</b><div class="m">Tap to download and install. Android will ask you to confirm.</div><button class="ubtn" onclick="doUpd()">Update now</button></div>`:'')+(flash?`<div class="card">${flash}</div>`:'')+({dash,month,add:form,year,sms,fam,about,cat:catv}[tab])();flash='';
  pie('p1',tab=='year'?sumBy(live().filter(t=>t.date.startsWith(yr)),t=>t.cat):sumBy(live().filter(t=>t.date.startsWith(ym)),t=>t.cat));
  if(tab=='year'){const mo=Array(12).fill(0);live().filter(t=>t.date.startsWith(yr)).forEach(t=>mo[+t.date.slice(5,7)-1]+=t.amt);bars('b1',mo)}}
 const ld=ms=>new Date(ms-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
@@ -143,18 +143,19 @@ function catv(){const f=t=>t.cat===csel&&(cscope=='a'||(cscope=='y'?t.date.start
  <div class="row"><button class="${cscope=='m'?'':'s'}" onclick="cscope='m';render()">Month ${ym}</button><button class="${cscope=='y'?'':'s'}" onclick="cscope='y';render()">Year ${yr}</button><button class="${cscope=='a'?'':'s'}" onclick="cscope='a';render()">All time</button></div></div>
  <div class="card">${l.map(txRow).join('')||'<div class="m">No expenses in this category.</div>'}</div>`}
 function cmpV(a,b){const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++)if((x[i]||0)!==(y[i]||0))return(x[i]||0)-(y[i]||0);return 0}
-function doUpd(){location.href=upv.url}
+async function doUpd(){if(!NP)return location.href=upv.url;
+ try{await NP.installApk({url:upv.url})}catch(e){if(String(e.message||e).includes('perm'))alert('Turn ON "Allow from this source" for IA (Expenses) on the screen that opened, then come back and tap Update again.');else{alert('Direct install failed ('+(e.message||e)+'). Opening browser download instead.');location.href=upv.url}}}
 async function apkUpd(q){try{const r=await(await fetch('https://api.github.com/repos/'+REPO+'/releases/latest')).json(),v=(r.tag_name||'').replace(/^v/,''),a=(r.assets||[]).find(x=>/\.apk$/.test(x.name));
  if(v&&a&&cmpV(v,VER)>0){upv={v,url:a.browser_download_url};render()}else if(!q){flash='You have the latest version ('+VER+').';render()}}
  catch(e){if(!q){flash='Could not check for updates (internet needed; GitHub repo must be public).';render()}}}
 async function fixSms(){if(!NP||!db)return;const c=ld(Date.now()-90*864e5);let n=0;db.tx.forEach(t=>{if(t.src==='sms'&&!t.ed&&t.date>=c&&!db.del[t.id]){db.del[t.id]=Date.now();n++}});save();await scanSms(false,Date.now()-90*864e5)}
 function about(){return `<div class="card" style="text-align:center"><img src="icon.svg" width="72" height="72" style="border-radius:16px"><h3 style="margin-top:8px">IA (Expenses)</h3><div class="m">Family Expense Manager · Version ${VER}</div>
-<button onclick="apkUpd()">Check for update</button>${upv?`<button class="d" onclick="doUpd()">Update to ${upv.v} now</button>`:''}</div>
+<button onclick="apkUpd()">Check for update</button>${upv?`<button class="d ubtn" onclick="doUpd()">Update to ${upv.v} now</button>`:''}</div>
 <div class="card"><h3>Features</h3><div class="m">• Works fully offline; data stays on your phone<br>• Family registration (head, wife, son, daughter… with age)<br>• Dashboard, month-wise, year-wise, pie &amp; bar charts<br>• Add / edit / delete, search, monthly budget<br>• Duplicate protection (reference no., same date/amount/note, or same amount to the same payee within 10 minutes)<br>• Tap any category to see all its expenses (month, year or all time)<br>• Expenses by family member<br>• Automatic SMS import from the bank inbox<br>• Wi-Fi / hotspot sync between family phones, plus sync file sharing<br>• One-tap app update</div></div>
 <div class="card"><h3>SMS rules</h3><div class="m"><b>Ignored (not expenses):</b> investments (SIP, mutual fund, Groww, Zerodha, NPS, PPF, Jar, gold, silver) and transfers (self transfer between your own bank accounts, NEFT/IMPS/RTGS account-to-account transfers, family transfer, payments to registered family members, your own custom keywords).<br><b>Categories:</b> Groceries &amp; Essentials, Medical &amp; Healthcare, Travel &amp; Commute, Food &amp; Dining, Bills &amp; Utilities, Other.<br>Only bank debit messages are used. OTP, reminders, failed and refund messages and "dispute / call" helpline text are skipped. The payee name is picked from the SMS. If you change a category, the app remembers it for that payee.</div></div>
 <div class="card"><h3>How to sync</h3><div class="m">Register on the first phone. On other phones choose "Join by Wi-Fi" on the first screen. Later, open the app on both phones on the same Wi-Fi or hotspot and tap Family → Sync now.</div></div>
 <div class="card"><h3>Developer</h3><div>App developed by - <b>Ishwar Dayal</b><br><a href="mailto:ishwar766@gmail.com" style="color:var(--p)">ishwar766@gmail.com</a></div></div>`}
-function boot(){if(!NP)return;NP.start().catch(()=>{});NP.addListener('peerData',e=>{if(db){try{merge(JSON.parse(e.json));render()}catch(x){}}});
+function boot(){if(!NP)return;NP.addListener('dl',e=>document.querySelectorAll('.ubtn').forEach(b=>b.textContent='Downloading '+e.p+'%'));NP.start().catch(()=>{});NP.addListener('peerData',e=>{if(db){try{merge(JSON.parse(e.json));render()}catch(x){}}});
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)scanSms(true)});scanSms(true);setTimeout(()=>apkUpd(true),3000)}
 const sp=new URLSearchParams(location.search).get('text');if(sp){smsTxt=sp;tab='sms'}
 if('serviceWorker'in navigator&&!NP)navigator.serviceWorker.register('sw.js').then(r=>{swReg=r;r.addEventListener('updatefound',()=>{const w=r.installing;w&&w.addEventListener('statechange',()=>{if(w.state=='installed'&&navigator.serviceWorker.controller){flash='New version available — tap Family → Check for update.';render()}})})}).catch(()=>{});
