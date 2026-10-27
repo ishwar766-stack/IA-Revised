@@ -2,6 +2,8 @@ package com.ia.expenses;
 import android.Manifest;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Environment;
+import android.content.pm.PackageManager;
 import android.content.Intent;
 import android.os.Build;
 import android.provider.Settings;
@@ -13,7 +15,7 @@ import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
-@CapacitorPlugin(name = "IaNative", permissions = { @Permission(alias = "sms", strings = { Manifest.permission.READ_SMS }) })
+@CapacitorPlugin(name = "IaNative", permissions = { @Permission(alias = "sms", strings = { Manifest.permission.READ_SMS }), @Permission(alias = "storage", strings = { Manifest.permission.WRITE_EXTERNAL_STORAGE }) })
 public class IaNativePlugin extends Plugin {
   private volatile String data = "{}";
   private boolean started = false;
@@ -98,6 +100,52 @@ public class IaNativePlugin extends Plugin {
         JSObject r = new JSObject(); r.put("peers", peers); c.resolve(r);
       } catch (Exception e) { c.reject(String.valueOf(e.getMessage())); }
     }).start();
+  }
+  private boolean safeDone = false;
+  private File bdir() { return new File(Environment.getExternalStorageDirectory(), "IA-Expenses"); }
+  private boolean storageOk() {
+    if (Build.VERSION.SDK_INT >= 30) return Environment.isExternalStorageManager();
+    return getPermissionState("storage") == PermissionState.GRANTED;
+  }
+  @PluginMethod public void storageReady(PluginCall c) { JSObject r = new JSObject(); r.put("ok", storageOk()); c.resolve(r); }
+  @PluginMethod public void askStorage(PluginCall c) {
+    if (Build.VERSION.SDK_INT >= 30) {
+      if (!Environment.isExternalStorageManager()) {
+        Intent i = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:" + getContext().getPackageName()));
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); getContext().startActivity(i);
+      }
+      c.resolve();
+    } else requestPermissionForAlias("storage", c, "stCb");
+  }
+  @PermissionCallback private void stCb(PluginCall c) { c.resolve(); }
+  @PluginMethod public void saveBackup(PluginCall c) {
+    if (!storageOk()) { c.reject("perm"); return; }
+    try {
+      File d = bdir(); d.mkdirs();
+      File f = new File(d, "ia-expenses-backup.json"), p = new File(d, "ia-expenses-backup-prev.json"), t = new File(d, "tmp.json"), sf = new File(d, "ia-expenses-backup-safe.json");
+      byte[] b = c.getString("json", "{}").getBytes(StandardCharsets.UTF_8);
+      if (!safeDone && f.exists() && f.length() > b.length) {
+        try (InputStream in = new FileInputStream(f); FileOutputStream o = new FileOutputStream(sf)) { byte[] x = new byte[8192]; int n; while ((n = in.read(x)) > 0) o.write(x, 0, n); }
+      }
+      safeDone = true;
+      try (FileOutputStream o = new FileOutputStream(t)) { o.write(b); }
+      if (f.exists()) { p.delete(); f.renameTo(p); }
+      t.renameTo(f); c.resolve();
+    } catch (Exception e) { c.reject(String.valueOf(e.getMessage())); }
+  }
+  @PluginMethod public void loadBackup(PluginCall c) {
+    JSObject r = new JSObject(); r.put("json", "");
+    if (!storageOk()) { c.resolve(r); return; }
+    try {
+      for (String n : new String[] { "ia-expenses-backup.json", "ia-expenses-backup-prev.json" }) {
+        File f = new File(bdir(), n);
+        if (f.exists() && f.length() > 2) {
+          ByteArrayOutputStream o = new ByteArrayOutputStream(); try (InputStream in = new FileInputStream(f)) { byte[] x = new byte[8192]; int k; while ((k = in.read(x)) > 0) o.write(x, 0, k); }
+          r.put("json", o.toString("UTF-8")); break;
+        }
+      }
+      c.resolve(r);
+    } catch (Exception e) { c.reject(String.valueOf(e.getMessage())); }
   }
   @PluginMethod public void installApk(PluginCall c) {
     final String url = c.getString("url");

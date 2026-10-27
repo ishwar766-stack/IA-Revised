@@ -11,7 +11,7 @@ h3{margin:0 0 10px;font-size:15px}.big{font-size:28px;font-weight:700}.m{color:v
 input,select,textarea,button{font:inherit;padding:10px;border-radius:10px;border:1px solid var(--b);background:var(--c);color:var(--t);width:100%;margin:4px 0}
 button{background:var(--p);color:#fff;border:0;font-weight:600;cursor:pointer}button.s{background:var(--b);color:var(--t)}button.d{background:var(--r)}
 .row{display:flex;gap:8px}.row>*{flex:1}.tx{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--b)}
-.tx:last-child{border:0}.tx button{width:auto;padding:4px 9px;margin:0 0 0 4px;font-size:12px}.amt{font-weight:700}
+.tx:last-child{border:0}.tx button{width:auto;padding:4px 9px;margin:0 0 0 4px;font-size:12px}.amt{font-weight:700}.lnk{text-decoration:underline dotted;cursor:pointer}
 nav{position:fixed;bottom:0;left:0;right:0;background:var(--c);border-top:1px solid var(--b);display:flex;padding-bottom:env(safe-area-inset-bottom)}
 nav a{flex:1;text-align:center;padding:10px 0;font-size:10.5px;color:var(--m);cursor:pointer}nav a.on{color:var(--p);font-weight:700}
 .bar{height:8px;background:var(--b);border-radius:6px;overflow:hidden}.bar i{display:block;height:100%;background:var(--p)}
@@ -20,7 +20,7 @@ canvas{width:100%;height:auto}.dot{display:inline-block;width:10px;height:10px;b
 <header><img src="icon.svg" alt=""><div><b>IA (Expenses)</b><small>Family expense manager · offline</small></div></header>
 <main id="app"></main><nav id="nav"></nav>
 <script>
-const VER='1.3.0',K='ia_exp_v1',COL=['#0f766e','#f59e0b','#3b82f6','#ef4444','#8b5cf6','#10b981','#ec4899','#64748b'];
+const VER='1.4.0',K='ia_exp_v1',COL=['#0f766e','#f59e0b','#3b82f6','#ef4444','#8b5cf6','#10b981','#ec4899','#64748b'];
 const CATS=['Groceries & Essentials','Medical & Healthcare','Travel & Commute','Food & Dining','Bills & Utilities','Education','Rent & Home','Other'];
 const RULES=[['IGNORE (Investment)',/\bsip\b|mutual\W*funds?|\bmf\b|\bamc\b|bandhan\s*(?:mutual|mf|amc|fund)|groww|zerodha|\bnps\b|\bppf\b|\bjar\b|gold|silver|folio|demat|smallcase|kuvera|indmoney/i],
 ['IGNORE (Transfer)',/self[\s-]*transfer|\bself\b|\bto\s*self|own\s*(?:a\/?c|account)|sent to family|family\s*(?:group|transfer)|transfer(?:red)?\s*to\s*(?:self|family)|\b(?:neft|imps|rtgs)\b|fund\s*transfer|(?:to|towards)\s+(?:your\s+|own\s+)?(?:hdfc|icici|sbi|axis|kotak|pnb|canara|bandhan|idfc|yes|indusind|federal|idbi|bob|union)\s*(?:bank)?\s*(?:a\/?c|account)|a\/?c\s*(?:no\.?\s*)?[x*]+\d{3,4}\s*(?:to|->)\s*(?:a\/?c|[a-z]+\s*bank)/i],
@@ -30,12 +30,12 @@ const RULES=[['IGNORE (Investment)',/\bsip\b|mutual\W*funds?|\bmf\b|\bamc\b|band
 ['Food & Dining',/swiggy|zomato|dhaba|restaurant|bakery/i],
 ['Bills & Utilities',/electricity|bijli|recharge|airtel|\bjio\b|broadband|\bdth\b|water bill|gas bill|postpaid/i]];
 let db=JSON.parse(localStorage.getItem(K)||'null'),tab='dash',ym=new Date().toISOString().slice(0,7),yr=ym.slice(0,4),edit=null,flash='',smsTxt='',swReg=null;
-const NP=window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.IaNative,REPO='YOUR_USER/ia-expenses',save=()=>{localStorage.setItem(K,JSON.stringify(db));NP&&NP.setData({json:JSON.stringify(db)}).catch(()=>{})},$=s=>document.querySelector(s),inr=n=>'₹'+Math.round(n).toLocaleString('en-IN');
+const NP=window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.IaNative,REPO='YOUR_USER/ia-expenses',save=()=>{localStorage.setItem(K,JSON.stringify(db));NP&&NP.setData({json:JSON.stringify(db)}).catch(()=>{});bkSoon()},$=s=>document.querySelector(s),inr=n=>'₹'+Math.round(n).toLocaleString('en-IN');
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7),today=()=>new Date().toISOString().slice(0,10);
 const norm=s=>(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
 const key=t=>t.ref?'r'+t.ref:t.date+'|'+Math.round(t.amt*100)+'|'+norm(t.note).slice(0,12);
 const live=()=>db.tx.filter(t=>!db.del[t.id]);
-const dupOf=t=>live().find(x=>x.id!==t.id&&(key(x)===key(t)||(x.src==='sms'&&t.src==='sms'&&x.ts&&t.ts&&Math.abs(x.ts-t.ts)<=6e5&&Math.round(x.amt*100)===Math.round(t.amt*100)&&x.note&&x.note!=='Bank debit'&&norm(x.note)===norm(t.note))));
+const dupOf=t=>live().find(x=>x.id!==t.id&&(key(x)===key(t)||(x.src==='sms'&&t.src==='sms'&&x.ts&&t.ts&&Math.abs(x.ts-t.ts)<=6e5&&Math.round(x.amt*100)===Math.round(t.amt*100)&&x.note&&!/^(Bank debit|Unnamed)/.test(x.note)&&norm(x.note)===norm(t.note))));
 const sumBy=(l,f)=>l.reduce((o,t)=>(o[f(t)]=(o[f(t)]||0)+t.amt,o),{});
 function classify(s){const l=s.toLowerCase(),n=norm(s);
  if(db&&db.ign&&db.ign.split(',').some(w=>w.trim()&&(l.includes(w.trim().toLowerCase())||n.includes(norm(w)))))return'IGNORE (Custom)';
@@ -44,11 +44,15 @@ function classify(s){const l=s.toLowerCase(),n=norm(s);
  for(const[c,r]of RULES.slice(2))if(r.test(s))return c;
  return'Other'}
 const BOIL=/\b(?:if not you|not you\b|if you did not|for any dispute|any dispute|dispute|to block|block upi|toll[\s-]*free|helpline|call\s*\d|sms block)/i;
-function merchant(c){
- const m=c.match(/VPA\s+\S+?\s*\(([^)]{2,30})\)/i)||c.match(/UPI\/(?:DR\/|P2[APM]\/)?\d+\/([A-Za-z][^\/]{2,30})/i)||c.match(/(?:\bto|\bat|trf to|paid to|sent to|towards)\s+(?:VPA\s+)?([A-Za-z0-9][A-Za-z0-9 &._@'-]{2,30}?)(?=\s+(?:on|via|ref|upi|using|from|if|for|info|a\/c|\d{1,2}[-\/])|[.,(]|$)/i);
- if(!m)return'';const n=m[1].replace(/@.*/,'').replace(/[._]+/g,' ').replace(/\s+/g,' ').trim();
- if(n.length<3||/^(a\/?c|account|your|the|bank|vpa|xx|card|you|me|us|rs|inr|\d)/i.test(n))return'';
+function clean(x){const n=x.replace(/@.*/,'').replace(/[._\-]+/g,' ').replace(/\s+/g,' ').trim();
+ if(n.length<3||/\d{5,}/.test(n)||/^(a\/?c|account|your|the|bank|vpa|xx|card|you|me|us|rs|inr|\d|upi|ref)/i.test(n))return'';
  return n.replace(/\w\S*/g,w=>w[0].toUpperCase()+w.slice(1).toLowerCase())}
+function merchant(c){
+ const P=[/VPA\s+\S+?\s*\(([^)]{2,30})\)/ig,/UPI\/(?:DR\/|P2[APM]\/)?\d+\/([A-Za-z][^\/]{2,30})/ig,
+ /(?:beneficiary|benef|payee|merchant|info)\s*[:\-]?\s*([A-Za-z][A-Za-z0-9 &._'-]{2,30}?)(?=\s+(?:on|via|ref|upi|using|from|if|for|a\/c)|[.,(\/]|$)/ig,
+ /(?:\bto|\bat|trf to|paid to|sent to|transferred to|towards|favou?ring)\s+(?:VPA\s+)?([A-Za-z0-9][A-Za-z0-9 &._@'-]{2,30}?)(?=\s+(?:on|via|ref|upi|using|from|if|for|info|a\/c|\d{1,2}[-\/])|[.,(]|$)/ig];
+ for(const p of P)for(const m of c.matchAll(p)){const n=clean(m[1]);if(n)return n}
+ const v=c.match(/([A-Za-z][\w.\-]{2,})@[a-z]{2,}/i);return v&&!/\d{5,}/.test(v[1])?clean(v[1]):''}
 function isFam(n){const t=n.toLowerCase().split(/[^a-z]+/).filter(x=>x.length>=3);if(!t.length)return false;
  return db.fam.some(f=>{const m=f.name.toLowerCase().split(/[^a-z]+/).filter(Boolean);return t.every(x=>m.some(y=>y===x||y.startsWith(x)))||(t[0]===m[0]&&m[0].length>=4)})}
 function parseSMS(s,dt,ts){
@@ -58,8 +62,8 @@ function parseSMS(s,dt,ts){
  const a=c.match(/(?:rs\.?|inr|₹)\s*([\d,]+(?:\.\d+)?)/i);if(!a)return{skip:'No amount found'};
  const mer=merchant(c),cat=classify(c+' '+mer);if(cat.startsWith('IGNORE'))return{skip:cat};
  if(mer&&isFam(mer))return{skip:'IGNORE (Transfer)'};
- const r=c.match(/(?:ref(?:erence)?(?: no)?\.?|upi|txn)[:.\s-]*(\d{8,})/i);
- return{t:{id:uid(),date:dt||today(),ts:ts||Date.now(),amt:parseFloat(a[1].replace(/,/g,'')),cat,note:mer||(cat!=='Other'?cat:'Bank debit'),by:db.me,ref:r?r[1]:'',upd:Date.now(),src:'sms',raw:c.slice(0,200)}}}
+ const AC=(c.match(/(?:a\/?c|account|card)\D{0,10}[x*]*(\d{4})/i)||[])[1],r=c.match(/(?:ref(?:erence)?(?: no)?\.?|upi|txn)[:.\s-]*(\d{8,})/i);
+ return{t:{id:uid(),date:dt||today(),ts:ts||Date.now(),amt:parseFloat(a[1].replace(/,/g,'')),cat,note:mer||(cat!=='Other'?cat:'Unnamed payee'+(AC?' · XX'+AC:'')),by:db.me,ref:r?r[1]:'',upd:Date.now(),src:'sms',raw:c.slice(0,200)}}}
 function addTx(t){const d=dupOf(t);if(d)return false;db.tx.push(t);save();return true}
 function merge(o){let n=0,u=0;Object.assign(db.del,o.del||{});
  for(const t of o.tx||[]){const x=db.tx.find(y=>y.id===t.id);if(x){if(t.upd>x.upd){Object.assign(x,t);u++}}else if(!dupOf(t)){db.tx.push(t);n++}}
@@ -74,10 +78,10 @@ function pie(id,data){const c=$('#'+id);if(!c)return;const x=c.getContext('2d'),
 function bars(id,vals){const c=$('#'+id);if(!c)return;const x=c.getContext('2d');c.width=340;c.height=180;const M=Math.max(...vals,1),g=getComputedStyle(document.body).color;
  vals.forEach((v,i)=>{const h=v/M*130;x.fillStyle=COL[0];x.fillRect(8+i*27,150-h,18,h);x.fillStyle=g;x.font='10px sans-serif';x.fillText('JFMAMJJASOND'[i],13+i*27,168)})}
 /* views */
-const txRow=t=>`<div class="tx"><div><b>${t.note||t.cat}</b><div class="m">${t.date} · ${t.cat} · ${(db.fam.find(f=>f.id===t.by)||{}).name||'—'}${t.src?' · SMS':''}</div></div><div><span class="amt">${inr(t.amt)}</span><button class="s" onclick="editTx('${t.id}')">Edit</button></div></div>`;
+const txRow=t=>`<div class="tx"><div><b class="lnk" data-n="${esc(t.note||t.cat)}" onclick="openPayee(this.dataset.n)">${t.note||t.cat}</b><div class="m">${t.date} · ${t.cat} · ${(db.fam.find(f=>f.id===t.by)||{}).name||'—'}${t.src?' · SMS':''}</div></div><div><span class="amt">${inr(t.amt)}</span><button class="s" onclick="editTx('${t.id}')">Edit</button></div></div>`;
 const catList=d=>Object.entries(d).sort((a,b)=>b[1]-a[1]).map(([k,v],i)=>`<div class="m" style="cursor:pointer;padding:6px 0;border-bottom:1px solid var(--b)" onclick="openCat(this.dataset.k)" data-k="${k}"><span class="dot" style="background:${COL[i%8]}"></span>${k}: <b>${inr(v)}</b> <span style="float:right">›</span></div>`).join('');
 function reg(){
- $('#nav').innerHTML='';$('#app').innerHTML=`<div class="card"><h3>Welcome! Register your family</h3><input id="fn" placeholder="Family name"><div id="mem"></div><button class="s" onclick="addM()">+ Add member</button><button onclick="doReg()">Start</button>${NP?'<button class="s" onclick="joinFam()">Already registered on another phone? Join by Wi-Fi</button>':''}<div class="m" id="err" style="color:var(--r)"></div></div>`;
+ $('#nav').innerHTML='';$('#app').innerHTML=`${bkCard()}<div class="card"><h3>Welcome! Register your family</h3><input id="fn" placeholder="Family name"><div id="mem"></div><button class="s" onclick="addM()">+ Add member</button><button onclick="doReg()">Start</button>${NP?'<button class="s" onclick="restoreBk()">Restore from backup (after clearing data / reinstall)</button>':''}${NP?'<button class="s" onclick="joinFam()">Already registered on another phone? Join by Wi-Fi</button>':''}<div class="m" id="err" style="color:var(--r)"></div></div>`;
  addM('Head');addM('Wife')}
 function addM(r){const d=document.createElement('div');d.className='row mrow';d.innerHTML=`<input placeholder="Name"><select>${['Head','Wife','Husband','Son','Daughter','Father','Mother','Other'].map(x=>`<option ${x==r?'selected':''}>${x}</option>`).join('')}</select><input type="number" placeholder="Age" style="max-width:70px"><input placeholder="Phone">`;$('#mem').append(d)}
 function doReg(){const fam=[...document.querySelectorAll('.mrow')].map(r=>{const i=r.querySelectorAll('input,select');return{id:uid(),name:i[0].value.trim(),rel:i[1].value,age:i[2].value,ph:i[3].value}}).filter(f=>f.name);
@@ -113,6 +117,7 @@ function doSMS(){const parts=$('#s').value.split(/\n\s*\n/).filter(x=>x.trim());
  smsTxt='';flash=`Added ${a}, duplicates ${d}, ignored ${i.length}${i.length?' ('+[...new Set(i)].join(', ')+')':''}.`;tab=a?'month':'sms';render()}
 function fam(){return `<div class="card"><h3>${db.name}</h3>${db.fam.map(f=>`<div class="tx"><div><b>${f.name}</b><div class="m">${f.rel} · ${f.age||'—'} yrs ${f.ph||''}</div></div>${f.id==db.me?'<span class="m">This device</span>':`<button class="s" onclick="db.me='${f.id}';save();render()">I am this</button>`}</div>`).join('')}</div>
  <div class="card"><h3>Monthly budget</h3><input id="bg" type="number" placeholder="₹" value="${db.budget||''}"><button onclick="db.budget=+$('#bg').value;save();flash='Budget saved.';render()">Save budget</button></div>
+ ${NP?`<div class="card"><h3>Permanent backup</h3><div class="m">${bkOK?'✅ ON – saved in Internal storage / IA-Expenses / ia-expenses-backup.json after every change. It survives clearing app data and deleting SMS.':'⚠ OFF – allow storage access to keep your data safe.'}</div>${bkOK?'':'<button onclick="askBk()">Enable permanent backup</button>'}<button class="s" onclick="NP.saveBackup({json:JSON.stringify(db)}).then(()=>{flash='Backup saved.';render()}).catch(()=>alert('Allow storage access first'))">Backup now</button><button class="s" onclick="restoreBk()">Restore from backup (merge)</button></div>`:''}
  <div class="card"><h3>Ignore keywords</h3><div class="m">Comma separated. SMS containing these words are never counted (e.g. emi, insurance, a person's name).</div><input id="ig" value="${db.ign||''}"><button onclick="db.ign=$('#ig').value;save();flash='Saved.';render()">Save</button></div>
  <div class="card"><h3>Fix wrong SMS entries</h3><div class="m">Removes un-edited SMS entries of the last 90 days and re-reads them with the latest rules.</div><button class="s" onclick="fixSms()">Re-scan &amp; fix SMS (90 days)</button></div>
  <div class="card"><h3>Sync with family</h3><div class="m">Send your sync file to another phone via Bluetooth / Nearby Share / WhatsApp / same Wi-Fi, then import it there. Entries are merged; duplicates are ignored; latest edit wins.</div>${NP?'<button onclick="syncWifi()">Sync now (same Wi-Fi / hotspot)</button>':''}<button class="s" onclick="exp()">Share / export sync file</button><input type="file" id="f" accept=".json" onchange="imp(this.files[0])"></div>
@@ -125,7 +130,7 @@ function upd(){if(NP)return apkUpd();if(!swReg){flash='Updates need the installe
 function render(){if(!db)return reg();
  const T=[['dash','🏠','Home'],['month','📅','Month'],['add','➕','Add'],['year','📊','Year'],['sms','💬','SMS'],['fam','👪','Family'],['about','ℹ️','About']];
  $('#nav').innerHTML=T.map(([k,i,l])=>`<a class="${tab==k?'on':''}" onclick="edit=null;tab='${k}';render()">${i}<br>${l}</a>`).join('');
- $('#app').innerHTML=(upv?`<div class="card" style="border-color:var(--p)"><b>Update ${upv.v} available</b><div class="m">Tap to download and install. Android will ask you to confirm.</div><button class="ubtn" onclick="doUpd()">Update now</button></div>`:'')+(flash?`<div class="card">${flash}</div>`:'')+({dash,month,add:form,year,sms,fam,about,cat:catv}[tab])();flash='';
+ $('#app').innerHTML=bkCard()+(upv?`<div class="card" style="border-color:var(--p)"><b>Update ${upv.v} available</b><div class="m">Tap to download and install. Android will ask you to confirm.</div><button class="ubtn" onclick="doUpd()">Update now</button></div>`:'')+(flash?`<div class="card">${flash}</div>`:'')+({dash,month,add:form,year,sms,fam,about,cat:catv,payee:payv}[tab])();flash='';
  pie('p1',tab=='year'?sumBy(live().filter(t=>t.date.startsWith(yr)),t=>t.cat):sumBy(live().filter(t=>t.date.startsWith(ym)),t=>t.cat));
  if(tab=='year'){const mo=Array(12).fill(0);live().filter(t=>t.date.startsWith(yr)).forEach(t=>mo[+t.date.slice(5,7)-1]+=t.amt);bars('b1',mo)}}
 const ld=ms=>new Date(ms-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
@@ -135,6 +140,20 @@ async function scanSms(q,since){if(!NP||!db)return;try{const r=await NP.readSms(
 async function syncWifi(){flash='Searching family devices…';render();try{const r=await NP.syncNow({json:JSON.stringify(db)});let n=0,u=0;r.peers.forEach(p=>{const m=merge(JSON.parse(p));n+=m.n;u+=m.u});
  flash=r.peers.length?`Synced with ${r.peers.length} device(s): ${n} new, ${u} updated.`:'No other device found. Open the app on both phones, same Wi-Fi/hotspot.'}catch(e){flash='Sync failed.'}render()}
 async function joinFam(){db={name:'',fam:[],me:null,tx:[],del:{},budget:0};await syncWifi();if(!db.fam.length){db=null;alert('No registered device found on this network.');}render()}
+var bkOK=false,bkT,psel='',pback='dash';
+const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+function bkSoon(){clearTimeout(bkT);bkT=setTimeout(()=>{if(NP&&bkOK&&db)NP.saveBackup({json:JSON.stringify(db)}).catch(()=>{})},800)}
+async function chkBk(){if(!NP)return false;try{bkOK=!!(await NP.storageReady()).ok}catch(e){bkOK=false}return bkOK}
+async function askBk(){try{await NP.askStorage()}catch(e){}}
+async function restoreBk(silent){if(!await chkBk()){if(!silent){alert('Allow storage access on the screen that opens, then come back and tap Restore again.');await askBk()}return}
+ try{const r=await NP.loadBackup();if(!r.json){if(!silent)alert('No backup found in the IA-Expenses folder.');return}
+  const o=JSON.parse(r.json);if(!db){db=o;save();flash='Your data was restored from backup.'}else{const m=merge(o);flash=`Restored: ${m.n} new, ${m.u} updated.`}render()}catch(e){if(!silent)alert('Restore failed: '+e)}}
+async function resume(){const o=bkOK;await chkBk();if(!db&&bkOK)await restoreBk(true);else if(o!==bkOK){if(bkOK)bkSoon();render()}scanSms(true)}
+const bkCard=()=>NP&&!bkOK?`<div class="card" style="border-color:var(--r)"><b>Protect your data</b><div class="m">Allow storage access so your expenses are also saved in the IA-Expenses folder and survive clearing app data or reinstalling.</div><button onclick="askBk()">Enable permanent backup</button></div>`:'';
+function openPayee(n){psel=n;if(tab!=='payee')pback=tab;tab='payee';render();scrollTo(0,0)}
+function payv(){const N=norm(psel),l=live().filter(t=>norm(t.note||t.cat)===N).sort((a,b)=>b.date.localeCompare(a.date)||b.upd-a.upd),tot=l.reduce((s,t)=>s+t.amt,0),yy=sumBy(l,t=>t.date.slice(0,4));
+ return `<div class="card"><button class="s" onclick="tab=pback;render()">← Back</button><h3>${esc(psel)}</h3><div class="big">${inr(tot)}</div><div class="m">${l.length} payment(s) · average ${inr(l.length?tot/l.length:0)}${l.length?' · '+l[l.length-1].date+' to '+l[0].date:''}</div>
+ <div class="m" style="margin-top:6px">${Object.entries(yy).sort().reverse().map(([y,v])=>y+': <b>'+inr(v)+'</b>').join(' · ')}</div></div><div class="card">${l.map(txRow).join('')||'<div class="m">No history.</div>'}</div>`}
 var upv=null,csel=null,cscope='m',cback='dash';
 function openCat(k){csel=k;cback=tab;cscope=tab=='year'?'y':'m';tab='cat';render();scrollTo(0,0)}
 function catv(){const f=t=>t.cat===csel&&(cscope=='a'||(cscope=='y'?t.date.startsWith(yr):t.date.startsWith(ym)));
@@ -151,15 +170,16 @@ async function apkUpd(q){try{const r=await(await fetch('https://api.github.com/r
 async function fixSms(){if(!NP||!db)return;const c=ld(Date.now()-90*864e5);let n=0;db.tx.forEach(t=>{if(t.src==='sms'&&!t.ed&&t.date>=c&&!db.del[t.id]){db.del[t.id]=Date.now();n++}});save();await scanSms(false,Date.now()-90*864e5)}
 function about(){return `<div class="card" style="text-align:center"><img src="icon.svg" width="72" height="72" style="border-radius:16px"><h3 style="margin-top:8px">IA (Expenses)</h3><div class="m">Family Expense Manager · Version ${VER}</div>
 <button onclick="apkUpd()">Check for update</button>${upv?`<button class="d ubtn" onclick="doUpd()">Update to ${upv.v} now</button>`:''}</div>
-<div class="card"><h3>Features</h3><div class="m">• Works fully offline; data stays on your phone<br>• Family registration (head, wife, son, daughter… with age)<br>• Dashboard, month-wise, year-wise, pie &amp; bar charts<br>• Add / edit / delete, search, monthly budget<br>• Duplicate protection (reference no., same date/amount/note, or same amount to the same payee within 10 minutes)<br>• Tap any category to see all its expenses (month, year or all time)<br>• Expenses by family member<br>• Automatic SMS import from the bank inbox<br>• Wi-Fi / hotspot sync between family phones, plus sync file sharing<br>• One-tap app update</div></div>
+<div class="card"><h3>Features</h3><div class="m">• Works fully offline; data stays on your phone<br>• Family registration (head, wife, son, daughter… with age)<br>• Dashboard, month-wise, year-wise, pie &amp; bar charts<br>• Add / edit / delete, search, monthly budget<br>• Duplicate protection (reference no., same date/amount/note, or same amount to the same payee within 10 minutes)<br>• Tap any category to see all its expenses (month, year or all time)<br>• Expenses by family member<br>• Automatic SMS import from the bank inbox<br>• Wi-Fi / hotspot sync between family phones, plus sync file sharing<br>• Tap any payee or merchant to see its complete history<br>• Permanent backup in the IA-Expenses folder (survives clearing app data / reinstall)<br>• One-tap app update</div></div>
 <div class="card"><h3>SMS rules</h3><div class="m"><b>Ignored (not expenses):</b> investments (SIP, mutual fund, Groww, Zerodha, NPS, PPF, Jar, gold, silver) and transfers (self transfer between your own bank accounts, NEFT/IMPS/RTGS account-to-account transfers, family transfer, payments to registered family members, your own custom keywords).<br><b>Categories:</b> Groceries &amp; Essentials, Medical &amp; Healthcare, Travel &amp; Commute, Food &amp; Dining, Bills &amp; Utilities, Other.<br>Only bank debit messages are used. OTP, reminders, failed and refund messages and "dispute / call" helpline text are skipped. The payee name is picked from the SMS. If you change a category, the app remembers it for that payee.</div></div>
 <div class="card"><h3>How to sync</h3><div class="m">Register on the first phone. On other phones choose "Join by Wi-Fi" on the first screen. Later, open the app on both phones on the same Wi-Fi or hotspot and tap Family → Sync now.</div></div>
 <div class="card"><h3>Developer</h3><div>App developed by - <b>Ishwar Dayal</b><br><a href="mailto:ishwar766@gmail.com" style="color:var(--p)">ishwar766@gmail.com</a></div></div>`}
 function boot(){if(!NP)return;NP.addListener('dl',e=>document.querySelectorAll('.ubtn').forEach(b=>b.textContent='Downloading '+e.p+'%'));NP.start().catch(()=>{});NP.addListener('peerData',e=>{if(db){try{merge(JSON.parse(e.json));render()}catch(x){}}});
- document.addEventListener('visibilitychange',()=>{if(!document.hidden)scanSms(true)});scanSms(true);setTimeout(()=>apkUpd(true),3000)}
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)resume()});scanSms(true);setTimeout(()=>apkUpd(true),3000)}
 const sp=new URLSearchParams(location.search).get('text');if(sp){smsTxt=sp;tab='sms'}
 if('serviceWorker'in navigator&&!NP)navigator.serviceWorker.register('sw.js').then(r=>{swReg=r;r.addEventListener('updatefound',()=>{const w=r.installing;w&&w.addEventListener('statechange',()=>{if(w.state=='installed'&&navigator.serviceWorker.controller){flash='New version available — tap Family → Check for update.';render()}})})}).catch(()=>{});
 let rl;navigator.serviceWorker&&navigator.serviceWorker.addEventListener('controllerchange',()=>{if(rl)return;rl=1;location.reload()});
 if(db&&!db.m11){db.ign=((db.ign||'')+',arun kumar').replace(/^,/,'');db.m11=1;save()}
-render();boot();
+async function init(){if(NP){await chkBk();if(!db&&bkOK)await restoreBk(true)}render();boot()}
+init();
 </script></body></html>
